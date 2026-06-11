@@ -35,7 +35,7 @@ static void setup_curl(CURL* curl, struct curl_slist* headers,
     curl_easy_setopt(curl, CURLOPT_WRITEDATA,         parser);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT,    10L);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT,           0L);
-    curl_easy_setopt(curl, CURLOPT_USERAGENT,         "LinHelp/1.0");
+    curl_easy_setopt(curl, CURLOPT_USERAGENT,         "AskTux/1.0");
     curl_easy_setopt(curl, CURLOPT_NOPROGRESS,        0L);
     curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION,  progress_callback);
     curl_easy_setopt(curl, CURLOPT_XFERINFODATA,      ctx);

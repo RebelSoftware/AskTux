@@ -13,10 +13,10 @@ static std::string find_css_file()
 {
     // 1. Hard-coded install path (set at build time via -DCMAKE_INSTALL_PREFIX
     //    or meson's --prefix; defaults to /usr).
-    const char* prefix = std::getenv("LINHELP_PREFIX");
+    const char* prefix = std::getenv("ASKTUX_PREFIX");
     std::string base = prefix ? prefix : "/usr";
 
-    std::string installed = base + "/share/linhelp/style.css";
+    std::string installed = base + "/share/asktux/style.css";
     std::ifstream f(installed);
     if (f.good()) return installed;
 
@@ -109,14 +109,14 @@ void MarkdownRenderer::load_css(const std::string& path)
 {
     std::ifstream f(path);
     if (!f.is_open()) {
-        std::cerr << "[LinHelp] Warning: could not open CSS file: "
+        std::cerr << "[AskTux] Warning: could not open CSS file: "
                   << path << std::endl;
         return;
     }
     std::stringstream ss;
     ss << f.rdbuf();
     css_ = ss.str();
-    std::cout << "[LinHelp] Loaded CSS from " << path << std::endl;
+    std::cout << "[AskTux] Loaded CSS from " << path << std::endl;
     rebuild_template();
 }
 

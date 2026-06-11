@@ -70,7 +70,7 @@ void StreamParser::parse_ollama_line(const std::string& line)
             if (on_finish) on_finish();
         }
     } catch (const std::exception& e) {
-        std::cerr << "[LinHelp] Ollama parse error: " << e.what() << std::endl;
+        std::cerr << "[AskTux] Ollama parse error: " << e.what() << std::endl;
     }
 }
 
@@ -111,7 +111,7 @@ void StreamParser::parse_openai_line(const std::string& block)
                 if (on_finish) on_finish();
             }
         } catch (const std::exception& e) {
-            std::cerr << "[LinHelp] OpenAI parse error: " << e.what() << std::endl;
+            std::cerr << "[AskTux] OpenAI parse error: " << e.what() << std::endl;
         }
     }
 }

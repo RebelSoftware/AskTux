@@ -1,11 +1,11 @@
-#ifndef LINHELP_CONFIG_H
-#define LINHELP_CONFIG_H
+#ifndef ASKTUX_CONFIG_H
+#define ASKTUX_CONFIG_H
 
 #include <string>
 #include <nlohmann/json.hpp>
 
 /**
- * Config — singleton that loads and saves ~/.config/linhelp/config.json.
+ * Config — singleton that loads and saves ~/.config/asktux/config.json.
  *
  * Default values:
  *   backend       = "ollama"
@@ -58,4 +58,4 @@ private:
     std::string system_prompt_ = default_system_prompt();
 };
 
-#endif // LINHELP_CONFIG_H
+#endif // ASKTUX_CONFIG_H

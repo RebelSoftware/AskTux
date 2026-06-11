@@ -1,4 +1,4 @@
-# LinHelp — Build & Install
+# AskTux — Build & Install
 
 ## Dependencies
 
@@ -31,7 +31,7 @@ sudo pacman -S gtkmm4 curl nlohmann-json meson pkg-config
 ## Build
 
 ```bash
-cd linhelp
+cd asktux
 
 meson setup build
 meson compile -C build
@@ -51,17 +51,17 @@ meson test -C build
 meson install -C build
 ```
 
-This installs the `linhelp` binary, the `.desktop` file, and the icon to the
+This installs the `asktux` binary, the `.desktop` file, and the icon to the
 prefix chosen during setup (default `/usr/local/`).  The app will appear in your
 desktop launcher after you log out and back in, or you can run it from a terminal:
 
 ```bash
-linhelp
+asktux
 ```
 
 ## Configuration
 
-Configuration is stored at `~/.config/linhelp/config.json`.  You can also edit it
+Configuration is stored at `~/.config/asktux/config.json`.  You can also edit it
 from the **Settings** dialog inside the app.
 
 Default values:

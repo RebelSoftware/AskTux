@@ -9,7 +9,7 @@
 static std::string config_dir()
 {
     const char* home = std::getenv("HOME");
-    return (home ? std::string(home) : std::string("~")) + "/.config/linhelp";
+    return (home ? std::string(home) : std::string("~")) + "/.config/asktux";
 }
 
 static std::string config_path()
@@ -52,7 +52,7 @@ std::string Config::validate() const
 std::string Config::default_system_prompt()
 {
     return
-        "You are LinHelp, an expert Linux assistant. Your task is to give clear, "
+        "You are AskTux, an expert Linux assistant. Your task is to give clear, "
         "safe, step‑by‑step instructions for using Linux.\n\n"
         "You MUST:\n"
         "- Output only instructions — never suggest or generate commands that "
@@ -91,7 +91,7 @@ void Config::load()
         if (j.contains("openai_key"))    openai_key_    = j["openai_key"];
         if (j.contains("system_prompt")) system_prompt_ = j["system_prompt"];
     } catch (const std::exception& e) {
-        std::cerr << "[LinHelp] Failed to parse config: " << e.what() << std::endl;
+        std::cerr << "[AskTux] Failed to parse config: " << e.what() << std::endl;
     }
 }
 
@@ -112,7 +112,7 @@ void Config::save() const
 
     std::ofstream out(config_path());
     if (!out.is_open()) {
-        std::cerr << "[LinHelp] Failed to write config to " << config_path() << std::endl;
+        std::cerr << "[AskTux] Failed to write config to " << config_path() << std::endl;
         return;
     }
     out << j.dump(2) << std::endl;

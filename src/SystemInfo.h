@@ -1,5 +1,5 @@
-#ifndef LINHELP_SYSTEM_INFO_H
-#define LINHELP_SYSTEM_INFO_H
+#ifndef ASKTUX_SYSTEM_INFO_H
+#define ASKTUX_SYSTEM_INFO_H
 
 #include <string>
 
@@ -22,4 +22,4 @@ struct SystemInfo {
     static SystemInfo gather();
 };
 
-#endif // LINHELP_SYSTEM_INFO_H
+#endif // ASKTUX_SYSTEM_INFO_H

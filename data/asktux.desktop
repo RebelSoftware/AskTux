@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
-Name=LinHelp
+Name=AskTux
 Comment=LLM-based Linux help assistant
-Exec=linhelp
-Icon=linhelp
+Exec=asktux
+Icon=asktux
 Terminal=false
 Categories=Utility;

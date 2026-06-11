@@ -5,7 +5,7 @@
 
 ## Project Overview
 
-**Project Name:** LinHelp — LLM-Backed Linux Help Interface  
+**Project Name:** AskTux — LLM-Backed Linux Help Interface  
 **Purpose:** A simple Linux desktop application that answers natural‑language questions about using Linux. The LLM returns **instructions only** (no automatic system changes), guided by a system prompt that describes the user’s exact Linux environment.
 
 **Key Constraints:**
@@ -43,7 +43,7 @@ These are inserted into the **system prompt** so the LLM’s answers are context
 Default system prompt (user-editable in settings):
 
 ```
-You are LinHelp, an expert Linux assistant. Your task is to give clear, safe, step‑by‑step instructions for using Linux.
+You are AskTux, an expert Linux assistant. Your task is to give clear, safe, step‑by‑step instructions for using Linux.
 
 You MUST:
 - Output only instructions — never suggest or generate commands that change system state unless the user explicitly confirms they want a "how to change" (even then, give manual steps, not auto‑execute).
@@ -77,7 +77,7 @@ The output area is a `WebKitWebView` backed by **cmark** (CommonMark C library) 
 - The **entire** accumulated markdown is converted to HTML via `cmark_markdown_to_html()`. cmark is fast enough (pure C) that this completes in microseconds even for multi-page responses.
 - The HTML is wrapped in a full document with inline `<style>` (loaded from the external CSS file) and an auto-scroll `<script>`, then loaded into the WebView via `webkit_web_view_load_html()`.
 - **No final re-render step** — the HTML is always properly formatted, from first token to last.
-- **CSS is external** (`data/style.css`, installed to `$prefix/share/linhelp/style.css`) and can be edited without recompiling.
+- **CSS is external** (`data/style.css`, installed to `$prefix/share/asktux/style.css`) and can be edited without recompiling.
 
 ### 6. Safety & Read‑Only Mode
 - The app never executes commands from LLM output.  
@@ -114,9 +114,9 @@ Detect DE via `XDG_CURRENT_DESKTOP`, `DESKTOP_SESSION`, and process listing (`pg
 5. `MarkdownRenderer` – wraps `cmark_markdown_to_html()`, loads external CSS, builds full HTML document.
 6. `MainWindow` – gtkmm window, WebKitWebView output, signals, dispatcher.
 7. `SettingsDialog` – loads/saves config.
-8. `Config` – singleton, saves/loads `~/.config/linhelp/config.json`.
+8. `Config` – singleton, saves/loads `~/.config/asktux/config.json`.
 
-**Configuration storage:** `~/.config/linhelp/config.json` (JSON format).
+**Configuration storage:** `~/.config/asktux/config.json` (JSON format).
 
 ---
 
@@ -129,7 +129,7 @@ Work through these in order.
 The following modules are fully implemented and the application compiles and runs:
 - **Step 1** — Meson project with all dependencies.
 - **Step 2** — `SystemInfo` gathers distro, DE, display server, shell, hardware summary.
-- **Step 3** — `Config` singleton loads/saves `~/.config/linhelp/config.json`.
+- **Step 3** — `Config` singleton loads/saves `~/.config/asktux/config.json`.
 - **Step 4** — `PromptBuilder` replaces `{distro}`, `{desktop}`, etc. placeholders.
 - **Step 5** — `LLMClient` / `OllamaClient` / `OpenAIClient` with streaming via libcurl + background thread + `Glib::Dispatcher`. OllamaClient includes a model-pull phase (`/api/pull`) before generation.
 - **Step 6** — `MainWindow` with `WebKitWebView` (not `Gtk::TextView`), `Gtk::Entry` input, Submit/Cancel/Copy/Settings buttons, spinner, progress bar. HTML is rendered incrementally on every token via `MarkdownRenderer`.
@@ -152,10 +152,10 @@ Example `.desktop` file:
 ```desktop
 [Desktop Entry]
 Type=Application
-Name=LinHelp
+Name=AskTux
 Comment=LLM-based Linux help assistant
-Exec=linhelp
-Icon=linhelp
+Exec=asktux
+Icon=asktux
 Terminal=false
 Categories=Utility;
 ```

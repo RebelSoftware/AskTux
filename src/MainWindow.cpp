@@ -13,7 +13,7 @@
 // ── Constructor ──────────────────────────────────────────────────────────────
 MainWindow::MainWindow()
 {
-    set_title("LinHelp — Linux Help Assistant");
+    set_title("AskTux — Linux Help Assistant");
     set_default_size(720, 620);
 
     // ── HTML output area (WebKitWebView) ─────────────────────────────────────

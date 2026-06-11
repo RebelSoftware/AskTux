@@ -14,7 +14,7 @@ int main(int argc, char* argv[])
     Config::instance().load();
 
     // Create the GTK application.
-    auto app = Gtk::Application::create("org.linhelp.linhelp");
+    auto app = Gtk::Application::create("org.asktux.asktux");
 
     // Window must be created after the GApplication::startup signal fires.
     // Using signal_activate() is the standard gtkmm4 pattern.

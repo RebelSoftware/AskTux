@@ -1,5 +1,5 @@
-#ifndef LINHELP_MARKDOWN_RENDERER_H
-#define LINHELP_MARKDOWN_RENDERER_H
+#ifndef ASKTUX_MARKDOWN_RENDERER_H
+#define ASKTUX_MARKDOWN_RENDERER_H
 
 #include <string>
 
@@ -38,4 +38,4 @@ private:
     void rebuild_template();
 };
 
-#endif // LINHELP_MARKDOWN_RENDERER_H
+#endif // ASKTUX_MARKDOWN_RENDERER_H

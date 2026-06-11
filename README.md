@@ -1,9 +1,9 @@
-# LinHelp — LLM-Backed Linux Help Assistant
+# AskTux — LLM-Backed Linux Help Assistant
 
 > ⚠️ **Prerelease — Not suitable for production use.**  
 > This is an early-stage proof of concept. APIs, features, and behaviour will change without notice. Use at your own risk.
 
-LinHelp is a desktop application that lets you ask natural-language questions about using Linux and get step-by-step instructions from a local or remote LLM. It collects information about your system (distro, desktop environment, shell, hardware) and includes it as context so answers are tailored to your exact environment.
+AskTux is a desktop application that lets you ask natural-language questions about using Linux and get step-by-step instructions from a local or remote LLM. It collects information about your system (distro, desktop environment, shell, hardware) and includes it as context so answers are tailored to your exact environment.
 
 ![Screenshot](https://img.shields.io/badge/status-pre--release-orange)
 ![C++17](https://img.shields.io/badge/C%2B%2B-17-blue)
@@ -14,12 +14,12 @@ LinHelp is a desktop application that lets you ask natural-language questions ab
 
 ## Features
 
-- **Read-only assistance** — LinHelp never executes commands. It provides instructions only.
+- **Read-only assistance** — AskTux never executes commands. It provides instructions only.
 - **Streaming responses** — LLM output streams token-by-token, rendered as formatted HTML in real time via WebKitGTK.
 - **System-aware context** — Automatically detects your distro, desktop environment, display server, shell, and hardware to give relevant answers.
 - **Local & remote backends** — Supports Ollama (local) and OpenAI-compatible APIs.
 - **External styling** — Appearance is controlled by a CSS file that can be edited post-compilation.
-- **Customisable system prompt** — Edit the prompt template in Settings to change LinHelp's behaviour.
+- **Customisable system prompt** — Edit the prompt template in Settings to change AskTux's behaviour.
 
 ---
 
@@ -52,14 +52,14 @@ meson compile -C build
 Run from the build directory:
 
 ```bash
-./build/src/linhelp
+./build/src/asktux
 ```
 
 ---
 
 ## Configuration
 
-Settings are stored in `~/.config/linhelp/config.json`. You can edit this file directly or use the **Settings** dialog inside the app.
+Settings are stored in `~/.config/asktux/config.json`. You can edit this file directly or use the **Settings** dialog inside the app.
 
 | Setting | Default | Description |
 |---------|---------|-------------|
@@ -74,7 +74,7 @@ Settings are stored in `~/.config/linhelp/config.json`. You can edit this file d
 
 ## Styling
 
-The markdown output is styled via `data/style.css`, installed to `/usr/share/linhelp/style.css`. Edit this file to customise fonts, colours, and layout — no recompilation required.
+The markdown output is styled via `data/style.css`, installed to `/usr/share/asktux/style.css`. Edit this file to customise fonts, colours, and layout — no recompilation required.
 
 ---
 
