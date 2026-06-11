@@ -1,0 +1,204 @@
+
+# README.ai (gtkmm Edition – With Smooth Streaming)
+
+### README.ai is used to inform an LLM what the purpose of this project is
+
+## Project Overview
+
+**Project Name:** LinHelp — LLM-Backed Linux Help Interface  
+**Purpose:** A simple Linux desktop application that answers natural‑language questions about using Linux. The LLM returns **instructions only** (no automatic system changes), guided by a system prompt that describes the user’s exact Linux environment.
+
+**Key Constraints:**
+- Read‑only assistance – no command execution.
+- Runs on multiple Linux desktop environments (GNOME, KDE, XFCE, etc.).
+- **Compiled language:** C++ with **gtkmm** (GTK’s official C++ binding).  
+  *Lightweight, Linux‑native, no Python, no Qt.*
+- LLM responses **stream** token by token; the UI must remain smooth, without jumpiness or flashing.
+
+---
+
+## Core Functional Requirements
+
+### 1. User Interface (gtkmm)
+- **Main window:** Gtk::ApplicationWindow.
+- **Text input:** Gtk::Entry.
+- **Output area:** `WebKitWebView` inside a `Gtk::ScrolledWindow`. Renders markdown as styled HTML via **cmark**. CSS is loaded from an external file (`style.css`) — editable post-compilation.
+- **Buttons:** Submit, Cancel, Copy to Clipboard, Settings.
+- **Status indicator:** Gtk::Label or Gtk::Spinner while waiting / streaming.
+- **Progress bar:** pulses/during model download, hidden when idle.
+- **Settings dialog:** Gtk::Dialog with fields for LLM backend, API keys, model name, system prompt template.
+
+### 2. System Context Collector
+Before sending the user’s question to the LLM, the app must automatically collect:
+
+- **Distribution:** name and version (read `/etc/os-release`).
+- **Desktop environment:** (GNOME, KDE, XFCE, etc.) and its version (from environment variables like `XDG_CURRENT_DESKTOP` and checking installed packages).
+- **Window system:** X11 or Wayland (read `$XDG_SESSION_TYPE`).
+- **Shell:** parent shell of the app (from `$SHELL`) and version (execute `$SHELL --version`).
+- **Key hardware summary:** CPU, RAM, GPU (optional but helpful) — use `/proc/cpuinfo`, `sysinfo()`, or read from `/sys` and `/dev/dri/`.
+
+These are inserted into the **system prompt** so the LLM’s answers are contextually accurate.
+
+### 3. System Prompt Template
+Default system prompt (user-editable in settings):
+
+```
+You are LinHelp, an expert Linux assistant. Your task is to give clear, safe, step‑by‑step instructions for using Linux.
+
+You MUST:
+- Output only instructions — never suggest or generate commands that change system state unless the user explicitly confirms they want a "how to change" (even then, give manual steps, not auto‑execute).
+- Assume the user has the following system:
+  Distro: {distro}
+  Desktop: {desktop} ({version})
+  Display server: {window_system}
+  Shell: {shell}
+- Tailor every answer to this exact environment.
+- Prefer safe, reversible, and well‑documented methods.
+- Never hallucinate dangerous commands.
+- If unsure, say "I don't know based on your system info" and suggest general documentation.
+
+User question:
+{user_question}
+```
+### 4. LLM Backend Support
+- **Local:** Ollama HTTP API (`http://localhost:11434/api/generate`).
+- **Remote:** OpenAI‑compatible (`/v1/chat/completions`).
+
+**Streaming:** Both APIs support streaming (`"stream": true` for Ollama, `"stream": true` for OpenAI). The app will parse Server‑Sent Events (SSE) or JSON‑delimited chunks and update the UI incrementally.
+
+### 5. Streaming HTML Rendering (WebKitWebView + cmark)
+The output area is a `WebKitWebView` backed by **cmark** (CommonMark C library) for markdown→HTML conversion. This replaces the older Gtk::TextView + Pango text-tag approach.
+
+**Streaming pipeline:**
+- HTTP request and SSE/JSON parsing run in a **background thread** via `std::thread`.
+- Tokens are pushed into a thread-safe `std::queue<std::string>` protected by a mutex.
+- `Glib::Dispatcher` marshals a signal to the main thread.
+- On each tick, the main thread drains the queue and appends tokens to an accumulated markdown string (`raw_output_`).
+- The **entire** accumulated markdown is converted to HTML via `cmark_markdown_to_html()`. cmark is fast enough (pure C) that this completes in microseconds even for multi-page responses.
+- The HTML is wrapped in a full document with inline `<style>` (loaded from the external CSS file) and an auto-scroll `<script>`, then loaded into the WebView via `webkit_web_view_load_html()`.
+- **No final re-render step** — the HTML is always properly formatted, from first token to last.
+- **CSS is external** (`data/style.css`, installed to `$prefix/share/linhelp/style.css`) and can be edited without recompiling.
+
+### 6. Safety & Read‑Only Mode
+- The app never executes commands from LLM output.  
+- All system inspection uses `Gio::Subprocess` with a timeout; if a command hangs, the app proceeds with fallback values.
+
+### 7. Multi‑Desktop Support
+Detect DE via `XDG_CURRENT_DESKTOP`, `DESKTOP_SESSION`, and process listing (`pgrep -l`). Allow manual override in settings.
+
+---
+
+## Architecture (gtkmm / C++)
+
+**Language:** C++17  
+**GUI:** gtkmm 4.0  
+**HTTP client:** libcurl  
+**JSON parsing:** nlohmann/json (header‑only)  
+**Markdown→HTML:** libcmark  
+**HTML rendering:** WebKitGTK 6.0  
+**Build system:** Meson
+
+**Dependencies (pkg-config names):**
+- `gtkmm-4.0`
+- `libcurl`
+- `nlohmann_json`
+- `threads`
+- `webkitgtk-6.0`
+- `libcmark`
+
+**Modules:**
+1. `SystemInfo` – collects environment data.
+2. `PromptBuilder` – replaces `{distro}`, `{desktop}`, etc. placeholders.
+3. `LLMClient` – abstract base; `OllamaClient` and `OpenAIClient` implement streaming.
+4. `StreamParser` – SSE parser (for OpenAI‑style events) or line‑delimited JSON (Ollama).
+5. `MarkdownRenderer` – wraps `cmark_markdown_to_html()`, loads external CSS, builds full HTML document.
+6. `MainWindow` – gtkmm window, WebKitWebView output, signals, dispatcher.
+7. `SettingsDialog` – loads/saves config.
+8. `Config` – singleton, saves/loads `~/.config/linhelp/config.json`.
+
+**Configuration storage:** `~/.config/linhelp/config.json` (JSON format).
+
+---
+
+## Implementation Steps (For LLM Coding Agent)
+
+Work through these in order.
+
+### ✅ Steps 1–7: Implemented (POC complete)
+
+The following modules are fully implemented and the application compiles and runs:
+- **Step 1** — Meson project with all dependencies.
+- **Step 2** — `SystemInfo` gathers distro, DE, display server, shell, hardware summary.
+- **Step 3** — `Config` singleton loads/saves `~/.config/linhelp/config.json`.
+- **Step 4** — `PromptBuilder` replaces `{distro}`, `{desktop}`, etc. placeholders.
+- **Step 5** — `LLMClient` / `OllamaClient` / `OpenAIClient` with streaming via libcurl + background thread + `Glib::Dispatcher`. OllamaClient includes a model-pull phase (`/api/pull`) before generation.
+- **Step 6** — `MainWindow` with `WebKitWebView` (not `Gtk::TextView`), `Gtk::Entry` input, Submit/Cancel/Copy/Settings buttons, spinner, progress bar. HTML is rendered incrementally on every token via `MarkdownRenderer`.
+- **Step 7** — `SettingsDialog` with all config fields.
+
+#### Key difference from original plan: HTML rendering
+
+The output area uses a **WebKitWebView** backed by **cmark** instead of a `Gtk::TextView` with Pango text tags. This means:
+- Markdown is converted to real HTML (headings, code blocks, tables, blockquotes, lists all work correctly).
+- Styling is controlled by an external CSS file (`data/style.css`).
+- On each token arrival, the **entire** accumulated markdown is re-converted and reloaded into the WebView — no final re-render step needed.
+- Copy copies the raw markdown text, not the HTML.
+
+### Step 8: Packaging (not yet done)
+- Meson `install` targets exist for binary, `.desktop` file, icon, and CSS stylesheet.
+- Build and install via `meson setup build && meson compile -C build && meson install -C build`.
+- See [ROADMAP.ai](ROADMAP.ai) for distribution packaging plans.
+
+Example `.desktop` file:
+```desktop
+[Desktop Entry]
+Type=Application
+Name=LinHelp
+Comment=LLM-based Linux help assistant
+Exec=linhelp
+Icon=linhelp
+Terminal=false
+Categories=Utility;
+```
+
+---
+
+## Testing & Verification
+
+**Test environments:** Ubuntu 24.04 (GNOME/Wayland), Fedora 40 (KDE/X11), Arch (XFCE).
+
+**Streaming smoothness tests:**
+- Ask a question that returns a long answer (e.g., “Explain how to set up a firewall on this distro”).
+- Observe that the UI does not freeze, HTML-rendered content (headings, code blocks, tables) appears correctly from the first token — not just after streaming finishes.
+- Rapidly send multiple requests; verify that outstanding requests can be cancelled.
+
+**Functional tests:**
+- “Change screen resolution” → respects Wayland/X11.
+- “Install Firefox” → correct package manager.
+- “Delete all my files” → LLM refuses; app never executes.
+
+**Safety:** Ensure `Gio::Subprocess` is never called with user‑supplied or LLM‑supplied strings.
+
+---
+
+## Non‑Goals (Out of Scope)
+- Automatic command execution.
+- Voice interface.
+- Windows or macOS support.
+
+---
+
+## Success Criteria (POC achieved)
+1. Compiles cleanly with Meson and gtkmm 4.0 on a standard Linux distribution.
+2. No Python or Qt dependencies in the final binary.
+3. System detection works without root privileges.
+4. LLM streaming renders formatted HTML incrementally (no final re-render), without blocking the UI.
+5. The `.desktop` file installs and launches correctly.
+6. No command execution from LLM output.
+
+---
+
+## Updating README.ai
+This file should be regularly updated, git diff can be used to get an indication of what files have changed and 
+therefore what updates are neceesary
+
+**End of README.ai**

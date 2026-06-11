@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=LinHelp
+Comment=LLM-based Linux help assistant
+Exec=linhelp
+Icon=linhelp
+Terminal=false
+Categories=Utility;

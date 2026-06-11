@@ -1,0 +1,15 @@
+# Build output
+build/
+
+# Compiled objects
+*.o
+*.a
+*.so
+
+# Editor / OS
+*~
+*.swp
+.vscode/
+__pycache__/
+*.pyc
+.history

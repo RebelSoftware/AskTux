@@ -1,0 +1,10 @@
+A place to jot random thoughts
+
+Note: not to be used as a guide for any operation!
+
+The Help system should be able to explore what applications are already installed before suggesting a new installation
+if there is an application installed that is not as suitable as a suggested application the llm could promt to remove it 
+this reduces excessive bloat as a new user tries out different programs
+
+Man pages for commands already installed should be accessible to the LLM If and only If required
+
