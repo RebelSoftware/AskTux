@@ -45,9 +45,27 @@ void StreamParser::parse_ollama_line(const std::string& line)
     try {
         auto j = nlohmann::json::parse(line);
 
+        // Error response (no "response" or "status" key, just an error)
+        if (j.contains("error") && !j.contains("response")) {
+            std::string err = j["error"];
+            std::cerr << "[AskTux] Ollama error in stream: " << err << std::endl;
+            if (on_error) on_error(err);
+            // Still check for "done" — some errors also have done:true.
+            if (j.contains("done") && j["done"] == true && on_finish)
+                on_finish();
+            return;
+        }
+
         // Progress / download status (no "response" key)
         if (j.contains("status") && !j.contains("response")) {
             std::string status = j["status"];
+            // If the status itself signals an error, surface it.
+            if (status == "error" && j.contains("error")) {
+                std::string err = j["error"];
+                std::cerr << "[AskTux] Ollama pull error: " << err << std::endl;
+                if (on_error) on_error(err);
+                return;
+            }
             if (j.contains("completed") && j.contains("total")) {
                 int64_t completed = j["completed"];
                 int64_t total     = j["total"];

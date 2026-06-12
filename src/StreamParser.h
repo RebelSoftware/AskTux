@@ -30,6 +30,7 @@ public:
     // ── Callbacks ────────────────────────────────────────────────────────────
     std::function<void(const std::string&)> on_token;
     std::function<void(const std::string&)> on_progress;   // Ollama download status
+    std::function<void(const std::string&)> on_error;      // Ollama/OpenAI error key
     std::function<void()>                   on_finish;
 
 private:

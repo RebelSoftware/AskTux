@@ -197,6 +197,13 @@ void OllamaClient::worker_thread(
 
             StreamParser pull_parser(StreamParser::Mode::Ollama);
             pull_parser.on_progress = wrap_progress;
+            bool pull_error = false;
+            pull_parser.on_error = [&pull_error, model, on_error](const std::string& err) {
+                pull_error = true;
+                std::string msg = "Failed to pull \"" + model + "\": " + err;
+                std::cerr << "[AskTux] " << msg << std::endl;
+                if (on_error) on_error(msg);
+            };
 
             nlohmann::json pull_body;
             pull_body["model"]  = model;
@@ -245,6 +252,12 @@ void OllamaClient::worker_thread(
                 curl_easy_cleanup(curl);
                 return;
             }
+            if (pull_error) {
+                std::cerr << "[AskTux] Pull failed — aborting request" << std::endl;
+                curl_slist_free_all(headers);
+                curl_easy_cleanup(curl);
+                return;
+            }
             std::cerr << "[AskTux] POST /api/pull completed OK" << std::endl;
         } else {
             std::cerr << "[AskTux] Skipping /api/pull — model already available"
@@ -259,6 +272,7 @@ void OllamaClient::worker_thread(
         StreamParser gen_parser(StreamParser::Mode::Ollama);
         gen_parser.on_token    = std::move(on_token);
         gen_parser.on_progress = wrap_progress;  // same readable wrapper
+        gen_parser.on_error    = on_error;
         gen_parser.on_finish   = std::move(on_finish);
 
         nlohmann::json gen_body;
