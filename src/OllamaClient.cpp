@@ -111,51 +111,144 @@ void OllamaClient::worker_thread(
     };
 
     // ══════════════════════════════════════════════════════════════════════════
-    // PHASE 1 — Ensure model is available via /api/pull
+    // PHASE 1 — Check if model is already available; pull if not
     // ══════════════════════════════════════════════════════════════════════════
     {
-        StreamParser pull_parser(StreamParser::Mode::Ollama);
-        pull_parser.on_progress = wrap_progress;
+        // Use a dedicated curl handle for the tags check — same pattern as
+        // list_models() — to avoid state pollution from the main handle.
+        bool model_available = false;
+        {
+            std::string tags_url = base_url + "/api/tags";
+            std::string tags_response;
 
-        nlohmann::json pull_body;
-        pull_body["model"]  = model;
-        pull_body["stream"] = true;
+            CURL* tags_curl = curl_easy_init();
+            if (tags_curl) {
+                curl_easy_setopt(tags_curl, CURLOPT_URL, tags_url.c_str());
+                curl_easy_setopt(tags_curl, CURLOPT_WRITEFUNCTION,
+                    +[](char* ptr, size_t size, size_t nmemb, void* udata) -> size_t {
+                        auto* s = static_cast<std::string*>(udata);
+                        size_t total = size * nmemb;
+                        s->append(ptr, total);
+                        return total;
+                    });
+                curl_easy_setopt(tags_curl, CURLOPT_WRITEDATA, &tags_response);
+                curl_easy_setopt(tags_curl, CURLOPT_TIMEOUT, 5L);
+                curl_easy_setopt(tags_curl, CURLOPT_CONNECTTIMEOUT, 3L);
+                curl_easy_setopt(tags_curl, CURLOPT_USERAGENT, "AskTux/1.0");
 
-        std::string pull_json = pull_body.dump();
+                CURLcode res = curl_easy_perform(tags_curl);
+                long http_code = 0;
+                curl_easy_getinfo(tags_curl, CURLINFO_RESPONSE_CODE, &http_code);
+                curl_easy_cleanup(tags_curl);
 
-        curl_easy_setopt(curl, CURLOPT_URL, (base_url + "/api/pull").c_str());
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDS,    pull_json.c_str());
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, pull_json.size());
-        setup_curl(curl, headers, &pull_parser, &cancel_ctx);
+                std::cerr << "[AskTux] GET /api/tags → HTTP " << http_code
+                          << " (" << curl_easy_strerror(res) << ")"
+                          << ", body=" << tags_response.size() << " bytes"
+                          << std::endl;
 
-        CURLcode res = curl_easy_perform(curl);
+                if (res == CURLE_OK && http_code == 200 && !tags_response.empty()) {
+                    std::cerr << "[AskTux] /api/tags raw: "
+                              << tags_response.substr(0, 300) << std::endl;
+                    try {
+                        auto j = nlohmann::json::parse(tags_response);
+                        if (j.contains("models")) {
+                            std::cerr << "[AskTux] /api/tags has "
+                                      << j["models"].size() << " model(s):";
+                            for (const auto& m : j["models"]) {
+                                std::string name = m.contains("name")
+                                    ? m["name"].get<std::string>()
+                                    : "(unnamed)";
+                                std::cerr << " \"" << name << "\"";
+                                if (name == model) {
+                                    model_available = true;
+                                    std::cerr << " ← MATCH";
+                                }
+                            }
+                            std::cerr << std::endl;
+                        } else {
+                            std::cerr << "[AskTux] /api/tags: no \"models\" key"
+                                      << std::endl;
+                        }
+                    } catch (const std::exception& e) {
+                        std::cerr << "[AskTux] JSON parse error: "
+                                  << e.what() << std::endl;
+                    }
+                } else {
+                    std::cerr << "[AskTux] /api/tags check failed — will pull"
+                              << std::endl;
+                }
+            }
+        }
+
+        std::cerr << "[AskTux] Model \"" << model << "\" "
+                  << (model_available ? "found locally" : "NOT found locally")
+                  << std::endl;
 
         if (cancelled_.load()) {
             curl_slist_free_all(headers);
             curl_easy_cleanup(curl);
             return;
         }
-        if (res != CURLE_OK) {
-            std::string hint;
-            switch (res) {
-            case CURLE_COULDNT_CONNECT:
-                hint = "Could not connect to Ollama at " + base_url +
-                       ". Is Ollama running? (Try: systemctl --user start ollama)";
-                break;
-            case CURLE_OPERATION_TIMEDOUT:
-                hint = "Ollama pull timed out. Check your network or the model name.";
-                break;
-            case CURLE_COULDNT_RESOLVE_HOST:
-                hint = "Could not resolve host. Check the Ollama URL in Settings.";
-                break;
-            default:
-                hint = "Ollama pull failed: " + std::string(curl_easy_strerror(res));
-                break;
+
+        if (!model_available) {
+            std::cerr << "[AskTux] Proceeding with POST /api/pull for \""
+                      << model << "\"" << std::endl;
+            if (on_progress) on_progress(model + " — not found locally, pulling…");
+
+            StreamParser pull_parser(StreamParser::Mode::Ollama);
+            pull_parser.on_progress = wrap_progress;
+
+            nlohmann::json pull_body;
+            pull_body["model"]  = model;
+            pull_body["stream"] = true;
+
+            std::string pull_json = pull_body.dump();
+
+            // Restore POST / streaming config for /api/pull
+            curl_easy_setopt(curl, CURLOPT_URL, (base_url + "/api/pull").c_str());
+            curl_easy_setopt(curl, CURLOPT_POST, 1L);
+            curl_easy_setopt(curl, CURLOPT_HTTPGET, 0L);
+            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, pull_json.c_str());
+            curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, pull_json.size());
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &pull_parser);
+            curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 10L);
+            curl_easy_setopt(curl, CURLOPT_TIMEOUT, 0L);
+            curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+
+            CURLcode res = curl_easy_perform(curl);
+
+            if (cancelled_.load()) {
+                curl_slist_free_all(headers);
+                curl_easy_cleanup(curl);
+                return;
             }
-            if (on_error) on_error(hint);
-            curl_slist_free_all(headers);
-            curl_easy_cleanup(curl);
-            return;
+            if (res != CURLE_OK) {
+                std::string hint;
+                switch (res) {
+                case CURLE_COULDNT_CONNECT:
+                    hint = "Could not connect to Ollama at " + base_url +
+                           ". Is Ollama running? (Try: systemctl --user start ollama)";
+                    break;
+                case CURLE_OPERATION_TIMEDOUT:
+                    hint = "Ollama pull timed out. Check your network or the model name.";
+                    break;
+                case CURLE_COULDNT_RESOLVE_HOST:
+                    hint = "Could not resolve host. Check the Ollama URL in Settings.";
+                    break;
+                default:
+                    hint = "Ollama pull failed: " + std::string(curl_easy_strerror(res));
+                    break;
+                }
+                if (on_error) on_error(hint);
+                curl_slist_free_all(headers);
+                curl_easy_cleanup(curl);
+                return;
+            }
+            std::cerr << "[AskTux] POST /api/pull completed OK" << std::endl;
+        } else {
+            std::cerr << "[AskTux] Skipping /api/pull — model already available"
+                      << std::endl;
         }
     }
 
