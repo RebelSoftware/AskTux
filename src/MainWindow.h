@@ -61,7 +61,8 @@ private:
     std::unique_ptr<MarkdownRenderer> md_renderer_;
     std::string raw_output_;   // accumulated markdown
 
-    Gtk::Entry          question_entry_;
+    Gtk::ScrolledWindow question_scroll_;
+    Gtk::TextView       question_view_;
     Gtk::Button         submit_btn_;
     Gtk::Button         cancel_btn_;
     Gtk::Button         copy_btn_;

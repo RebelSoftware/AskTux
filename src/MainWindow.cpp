@@ -41,15 +41,32 @@ MainWindow::MainWindow()
     progress_bar_.set_show_text(true);
     progress_bar_.set_visible(false);
 
-    // ── Question entry + Submit + Cancel ─────────────────────────────────────
+    // ── Question input (multiline) + Submit + Cancel ─────────────────────────
+    question_scroll_.set_min_content_height(60);
+    question_scroll_.set_max_content_height(150);
+    question_scroll_.set_policy(Gtk::PolicyType::NEVER, Gtk::PolicyType::AUTOMATIC);
+    question_scroll_.set_child(question_view_);
+    question_view_.set_wrap_mode(Gtk::WrapMode::WORD_CHAR);
+    question_view_.set_hexpand(true);
+
+    // Ctrl+Enter to submit.
+    auto ctrl_enter = Gtk::EventControllerKey::create();
+    ctrl_enter->signal_key_pressed().connect([this](guint keyval, guint, Gdk::ModifierType state) {
+        if ((state & Gdk::ModifierType::CONTROL_MASK) != Gdk::ModifierType(0)
+            && keyval == GDK_KEY_Return) {
+            on_submit();
+            return true;
+        }
+        return false;
+    }, true);
+    question_view_.add_controller(ctrl_enter);
+
     auto entry_box = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::HORIZONTAL, 6);
-    question_entry_.set_placeholder_text("Ask a Linux question…");
-    question_entry_.set_hexpand(true);
+    entry_box->append(question_scroll_);
     submit_btn_.set_label("Submit");
     cancel_btn_.set_label("Cancel");
     cancel_btn_.set_visible(false);
 
-    entry_box->append(question_entry_);
     entry_box->append(submit_btn_);
     entry_box->append(cancel_btn_);
 
@@ -79,7 +96,6 @@ MainWindow::MainWindow()
     // ── Signals ──────────────────────────────────────────────────────────────
     submit_btn_.signal_clicked().connect(sigc::mem_fun(*this, &MainWindow::on_submit));
     cancel_btn_.signal_clicked().connect(sigc::mem_fun(*this, &MainWindow::on_cancel));
-    question_entry_.signal_activate().connect(sigc::mem_fun(*this, &MainWindow::on_submit));
     copy_btn_.signal_clicked().connect(sigc::mem_fun(*this, &MainWindow::on_copy));
     settings_btn_.signal_clicked().connect(sigc::mem_fun(*this, &MainWindow::on_settings));
 
@@ -91,7 +107,8 @@ MainWindow::~MainWindow() = default;
 // ── Submit ───────────────────────────────────────────────────────────────────
 void MainWindow::on_submit()
 {
-    std::string question = question_entry_.get_text();
+    auto buf = question_view_.get_buffer();
+    std::string question = buf->get_text(false);
     if (question.empty()) return;
 
     clear_output();
@@ -264,7 +281,7 @@ void MainWindow::set_busy(bool busy)
 {
     submit_btn_.set_sensitive(!busy);
     submit_btn_.set_visible(!busy);
-    question_entry_.set_sensitive(!busy);
+    question_view_.set_sensitive(!busy);
     if (busy) spinner_.start(); else spinner_.stop();
 }
 
