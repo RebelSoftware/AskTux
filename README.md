@@ -17,7 +17,9 @@ AskTux is a desktop application that lets you ask natural-language questions abo
 - **Read-only assistance** — AskTux never executes commands. It provides instructions only.
 - **Streaming responses** — LLM output streams token-by-token, rendered as formatted HTML in real time via WebKitGTK.
 - **System-aware context** — Automatically detects your distro, desktop environment, display server, shell, and hardware to give relevant answers.
-- **Local & remote backends** — Supports Ollama (local) and OpenAI-compatible APIs.
+- **Local & remote providers** — Supports Ollama (local) and any OpenAI-compatible
+  API (OpenAI, Groq, DeepSeek, Google AI, GitHub Models, etc.) with saved
+  provider profiles and per-provider model lists.
 - **External styling** — Appearance is controlled by a CSS file that can be edited post-compilation.
 - **Customisable system prompt** — Edit the prompt template in Settings to change AskTux's behaviour.
 
@@ -30,15 +32,16 @@ AskTux is a desktop application that lets you ask natural-language questions abo
 - **nlohmann_json** (header-only JSON library)
 - **WebKitGTK 6.0** (`libwebkitgtk-6.0-dev`) — for HTML rendering
 - **libcmark** (`libcmark-dev`) — CommonMark markdown parser
+- **SQLite 3** (`libsqlite3-dev`) — configuration storage
 - **Meson** — build system
-- **sqlite** — For configuration and history
 - A running **Ollama** instance (default) or an **OpenAI-compatible API** endpoint
 
 ### Quick install (Debian / Ubuntu)
 
 ```bash
 sudo apt install meson libgtkmm-4.0-dev libcurl4-openssl-dev \
-                 nlohmann-json3-dev libwebkitgtk-6.0-dev libcmark-dev
+                 nlohmann-json3-dev libwebkitgtk-6.0-dev libcmark-dev \
+                 libsqlite3-dev
 ```
 
 ---
@@ -56,20 +59,57 @@ Run from the build directory:
 ./build/src/asktux
 ```
 
+The database is created automatically on first run using the schema in
+`data/schema.sql`. If the schema file cannot be found the application will
+refuse to start with a clear error — install scripts should ensure it is
+present.
+
+To pre-initialise the database manually (e.g. in an install script):
+
+```bash
+mkdir -p ~/.config/asktux
+sqlite3 ~/.config/asktux/config.db < data/schema.sql
+```
+
 ---
 
 ## Configuration
 
-Settings are stored in `~/.config/asktux/config.json`. You can edit this file directly or use the **Settings** dialog inside the app.
+Settings are stored in `~/.config/asktux/config.db` (SQLite). You can edit it
+directly with any SQLite tool, or use the **Settings** dialog inside the app.
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `backend` | `ollama` | `ollama` or `openai` |
-| `model` | `llama3.2:3b` | LLM model name |
-| `ollama_url` | `http://localhost:11434` | Ollama server URL |
-| `openai_url` | `https://api.openai.com/v1` | OpenAI-compatible base URL |
-| `openai_key` | *(empty)* | API key for remote backends |
+### Default providers
+
+| ID | Provider | Base URL | Default model |
+|----|----------|----------|---------------|
+| 1 | Ollama | `http://localhost:11434` | `llama3.1:8b` |
+| 2 | OpenAI | `https://api.openai.com/v1` | — |
+| 3 | Groq | `https://api.groq.com/openai/v1` | — |
+| 4 | DeepSeek | `https://api.deepseek.com/v1` | — |
+| 5 | Google AI | `https://generativelanguage.googleapis.com/v1beta/openai` | — |
+| 6 | GitHub Models | `https://models.inference.ai.azure.com` | — |
+
+- Provider ID **1 (Ollama)** uses a local model and does not need an API key.
+- All other providers require an API key (entered in Settings).
+- Each provider remembers the last-used model (`last_model` column).
+- The model dropdown is populated from saved models and (for Ollama) live
+  queries to the running instance.
+
+### Settings stored in the database
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `provider` | `1` (Ollama) | Currently selected provider ID |
 | `system_prompt` | *(built-in template)* | Custom system prompt with `{distro}`, `{desktop}`, etc. |
+
+### Debug mode
+
+```bash
+./build/src/asktux --debug
+```
+
+Enables detailed timing and trace logging (ScopedTimer, request dumps, Ollama
+internal breakdown). Useful for diagnosing performance issues.
 
 ---
 
