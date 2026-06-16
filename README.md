@@ -29,7 +29,6 @@ AskTux is a desktop application that lets you ask natural-language questions abo
 
 - **GTK 4** with **gtkmm 4.0** (C++ bindings)
 - **libcurl**
-- **nlohmann_json** (header-only JSON library)
 - **WebKitGTK 6.0** (`libwebkitgtk-6.0-dev`) — for HTML rendering
 - **libcmark** (`libcmark-dev`) — CommonMark markdown parser
 - **SQLite 3** (`libsqlite3-dev`) — configuration storage
@@ -40,8 +39,7 @@ AskTux is a desktop application that lets you ask natural-language questions abo
 
 ```bash
 sudo apt install meson libgtkmm-4.0-dev libcurl4-openssl-dev \
-                 nlohmann-json3-dev libwebkitgtk-6.0-dev libcmark-dev \
-                 libsqlite3-dev
+                 libwebkitgtk-6.0-dev libcmark-dev libsqlite3-dev
 ```
 
 ---

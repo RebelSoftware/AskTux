@@ -14,3 +14,5 @@ __pycache__/
 *.pyc
 .history
 .bash_history_local
+notes.txt
+meson_options.txt
