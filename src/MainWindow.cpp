@@ -5,6 +5,7 @@
 #include "PromptBuilder.h"
 #include "LLMClient.h"
 #include "MarkdownRenderer.h"
+#include "ScopedTimer.h"
 
 #include <glibmm.h>
 #include <iostream>
@@ -109,11 +110,13 @@ void MainWindow::on_submit()
         return;
     }
 
-    SystemInfo info = SystemInfo::gather();
+    ScopedTimer setup_timer("MainWindow::on_submit setup (SystemInfo + PromptBuilder + LLMClient::create)");
+    const SystemInfo& info = SystemInfo::get();
     std::string system_prompt = PromptBuilder::build(
         cfg.system_prompt_template(), info, question);
 
     client_ = LLMClient::create();
+    setup_timer.lap("Setup complete — about to call client_->send_request()");
     streaming_finished_ = false;
     first_token_received_ = false;
     request_start_ = std::chrono::steady_clock::now();

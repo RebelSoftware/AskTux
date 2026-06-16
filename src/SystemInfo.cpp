@@ -1,4 +1,5 @@
 #include "SystemInfo.h"
+#include "ScopedTimer.h"
 
 #include <fstream>
 #include <sstream>
@@ -6,10 +7,39 @@
 #include <array>
 #include <cstdio>
 #include <memory>
+#include <thread>
+
+// ── Static cache ─────────────────────────────────────────────────────────────
+std::optional<SystemInfo> SystemInfo::cache_;
+std::mutex                SystemInfo::mutex_;
+
+void SystemInfo::start_background_gather()
+{
+    std::thread t([]() {
+        SystemInfo info = gather();
+        std::lock_guard<std::mutex> lock(mutex_);
+        cache_ = std::move(info);
+    });
+    t.detach();
+}
+
+const SystemInfo& SystemInfo::get()
+{
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (cache_) return *cache_;
+    }
+    // Background thread hasn't finished yet — fall back to synchronous gather.
+    SystemInfo info = gather();
+    std::lock_guard<std::mutex> lock(mutex_);
+    cache_ = std::move(info);
+    return *cache_;
+}
 
 // ── Helper: run a command via popen with a 2-second timeout ──────────────────
 static std::string run_command(const std::string& cmd)
 {
+    ScopedTimer timer("run_command: " + cmd);
     std::string result;
     std::array<char, 4096> buf;
     // Use timeout(1) to cap execution at 2 seconds.
@@ -142,6 +172,7 @@ static std::string detect_hardware()
 // ── Gather ───────────────────────────────────────────────────────────────────
 SystemInfo SystemInfo::gather()
 {
+    ScopedTimer timer("SystemInfo::gather total");
     SystemInfo info;
     info.distro          = detect_distro();
     info.desktop         = detect_desktop();

@@ -31,6 +31,6 @@ cmark_dep  = dependency('libcmark',     required : true)
 asktux_exe = executable('asktux',
   asktux_sources,
   dependencies : [gtkmm_dep, curl_dep, nlohmann_json_dep, thread_dep,
-                  webkit_dep, cmark_dep],
+                  webkit_dep, cmark_dep, sqlite3_dep],
   install : true,
 )

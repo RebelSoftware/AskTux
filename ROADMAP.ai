@@ -4,7 +4,7 @@
 
 ### Phase 1 — Quick UX wins (low effort, high impact)
 
-* **Model pull optimisation** — Currently OllamaClient always calls `/api/pull` even when the model is already available, adding 1–3s of latency. Change to: `GET /api/tags` first, only `POST /api/pull` if the model is absent.
+* [Completed] **Model pull optimisation** — Currently OllamaClient always calls `/api/pull` even when the model is already available, adding 1–3s of latency. Change to: `GET /api/tags` first, only `POST /api/pull` if the model is absent. [Completed]
 
 * **Improve status messages** — Hide noisy internal progress ("pulling manifest", layer digests). Show a simple "Working…" label or a subtle animated indicator. Keep detailed progress in a debug log.
 
@@ -27,6 +27,8 @@
 ---
 
 ### Phase 4 — Distribution
+
+* **Bind to f1 key**  — start application if the user presses the default help key
 
 * **Installation packages for distros** — Build .deb / .rpm / AppImage. On install, offer to register the app as the F1-key default help viewer.
 

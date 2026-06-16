@@ -1,5 +1,7 @@
 #include "OpenAIClient.h"
 #include "Config.h"
+#include "ScopedTimer.h"
+#include "Log.h"
 
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
@@ -10,6 +12,8 @@ static size_t write_callback(char* ptr, size_t size, size_t nmemb, void* userdat
 {
     auto* parser = static_cast<StreamParser*>(userdata);
     size_t total = size * nmemb;
+    Log::dbg() << "[AskTux TRACE] write_callback: " << total << " bytes"
+               << std::endl;
     parser->feed(std::string(ptr, total));
     return total;
 }
@@ -53,6 +57,18 @@ void OpenAIClient::send_request(
 
     std::string json_body = body.dump();
 
+    Log::dbg() << "\n[AskTux] ──── Sent to OpenAI ────" << std::endl;
+    Log::dbg() << "[AskTux] URL: " << url << std::endl;
+    Log::dbg() << "[AskTux] Model: " << model << std::endl;
+    Log::dbg() << "[AskTux] System prompt: " << system_prompt.size()
+               << " chars, ~" << (system_prompt.size() / 4) << " tokens"
+               << std::endl;
+    Log::dbg() << "[AskTux] User question: " << user_question.size()
+               << " chars" << std::endl;
+    Log::dbg() << "[AskTux] Total request body: " << json_body.size()
+               << " bytes" << std::endl;
+    Log::dbg() << "[AskTux] ─────────────────────────\n" << std::endl;
+
     std::thread t(&OpenAIClient::worker_thread, this,
                   std::move(url), std::move(json_body),
                   std::move(api_key),
@@ -70,8 +86,17 @@ void OpenAIClient::worker_thread(
     ErrorCallback    on_error,
     FinishCallback   on_finish)
 {
+    ScopedTimer timer("OpenAIClient::worker_thread total");
+
     StreamParser parser(StreamParser::Mode::OpenAI);
-    parser.on_token    = std::move(on_token);
+
+    // Shared state for TTFT (time to first token).
+    struct TtftState {
+        std::chrono::steady_clock::time_point before_request;
+        std::atomic<bool> first_token_seen{false};
+    };
+    auto ttft_state = std::make_shared<TtftState>();
+
     parser.on_progress = std::move(on_progress);
     parser.on_finish   = std::move(on_finish);
 
@@ -103,6 +128,19 @@ void OpenAIClient::worker_thread(
     curl_easy_setopt(curl, CURLOPT_NOPROGRESS,        0L);
     curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION,  progress_callback);
     curl_easy_setopt(curl, CURLOPT_XFERINFODATA,      &cancel_ctx);
+
+    // Mark the start just before the blocking call.
+    ttft_state->before_request = std::chrono::steady_clock::now();
+    parser.on_token = [ttft_state, on_token = std::move(on_token)](const std::string& token) {
+        if (!ttft_state->first_token_seen.exchange(true)) {
+            auto ttft = std::chrono::duration_cast<std::chrono::milliseconds>(
+                            std::chrono::steady_clock::now()
+                            - ttft_state->before_request).count();
+            Log::dbg() << "[AskTux TIMER]   TTFT (first token): " << ttft << " ms"
+                       << std::endl;
+        }
+        if (on_token) on_token(token);
+    };
 
     CURLcode res = curl_easy_perform(curl);
     if (cancelled_.load()) {

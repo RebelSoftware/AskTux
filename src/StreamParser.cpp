@@ -1,4 +1,6 @@
 #include "StreamParser.h"
+#include "Log.h"
+
 #include <nlohmann/json.hpp>
 #include <iostream>
 
@@ -78,13 +80,48 @@ void StreamParser::parse_ollama_line(const std::string& line)
             return;
         }
 
-        // Token response
+        // Token response — handle both /api/generate and /api/chat formats.
         if (j.contains("response")) {
             std::string token = j["response"];
-            if (!token.empty() && on_token)
-                on_token(token);
+            if (!token.empty()) {
+                Log::dbg() << "[AskTux TRACE] token emit ('" << token << "')"
+                           << std::endl;
+                if (on_token) on_token(token);
+            }
+        } else if (j.contains("message") && j["message"].contains("content")) {
+            std::string token = j["message"]["content"];
+            if (!token.empty()) {
+                Log::dbg() << "[AskTux TRACE] token emit ('" << token << "')"
+                           << std::endl;
+                if (on_token) on_token(token);
+            }
         }
         if (j.contains("done") && j["done"] == true) {
+            // Log Ollama's internal timing from the final message.
+            auto ns_to_ms = [](int64_t ns) {
+                return ns / 1'000'000;
+            };
+            int64_t total_dur   = j.value("total_duration", 0LL);
+            int64_t load_dur    = j.value("load_duration", 0LL);
+            int64_t prompt_dur  = j.value("prompt_eval_duration", 0LL);
+            int64_t eval_dur    = j.value("eval_duration", 0LL);
+            int64_t prompt_cnt  = j.value("prompt_eval_count", 0LL);
+            int64_t eval_cnt    = j.value("eval_count", 0LL);
+
+            Log::dbg() << "[AskTux TIMER] Ollama internal breakdown:" << std::endl;
+            Log::dbg() << "[AskTux TIMER]   load_duration=" << ns_to_ms(load_dur)
+                       << "ms  (model loading into VRAM)" << std::endl;
+            Log::dbg() << "[AskTux TIMER]   prompt_eval_count=" << prompt_cnt
+                       << "  prompt_eval_duration=" << ns_to_ms(prompt_dur)
+                       << "ms  (" << (prompt_dur > 0 ? prompt_cnt * 1'000'000'000 / prompt_dur : 0)
+                       << " tok/s)" << std::endl;
+            Log::dbg() << "[AskTux TIMER]   eval_count=" << eval_cnt
+                       << "  eval_duration=" << ns_to_ms(eval_dur)
+                       << "ms  (" << (eval_dur > 0 ? eval_cnt * 1'000'000'000 / eval_dur : 0)
+                       << " tok/s)" << std::endl;
+            Log::dbg() << "[AskTux TIMER]   total_duration=" << ns_to_ms(total_dur)
+                       << "ms" << std::endl;
+
             if (on_finish) on_finish();
         }
     } catch (const std::exception& e) {

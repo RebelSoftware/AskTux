@@ -2,60 +2,96 @@
 #define ASKTUX_CONFIG_H
 
 #include <string>
-#include <nlohmann/json.hpp>
+#include <vector>
+#include <sqlite3.h>
 
 /**
- * Config — singleton that loads and saves ~/.config/asktux/config.json.
+ * SavedProvider — a remembered OpenAI-compatible endpoint so the user can
+ * quickly switch between providers without re-entering details.
+ */
+struct SavedProvider {
+    int     id   = 0;          // database rowid, 0 = not persisted
+    std::string name;          // user-friendly label (e.g. "OpenAI", "Groq")
+    std::string base_url;      // e.g. "https://api.openai.com/v1"
+    std::string api_key;       // stored in plaintext (local machine only)
+    std::string last_model;    // last model selected for this provider
+};
+
+/**
+ * Config — singleton backed by ~/.config/asktux/config.db (SQLite).
  *
- * Default values:
- *   backend       = "ollama"
- *   model         = "llama3.2:3b"
- *   ollama_url    = "http://localhost:11434"
- *   openai_url    = "https://api.openai.com/v1"
- *   openai_key    = ""
- *   system_prompt = <the default template from README.ai>
+ * Settings are stored as key-value pairs in a `settings` table, making it
+ * simple to add new fields without schema changes.  An old `config.json`
+ * is automatically migrated on first run.
+ *
+ * All getters return by value (not reference) because the data lives in
+ * SQLite, not in memory fields.
  */
 class Config {
 public:
     static Config& instance();
 
-    // ── Load / Save ──────────────────────────────────────────────────────────
+    // ── Lifecycle ────────────────────────────────────────────────────────────
+    /** Open (or create) the database and load settings. */
     void load();
-    void save() const;
+
+    /** Persist all current settings to the database. */
+    void save();
 
     // ── Getters ──────────────────────────────────────────────────────────────
-    const std::string& backend()              const { return backend_; }
-    const std::string& model()                const { return model_; }
-    const std::string& ollama_url()           const { return ollama_url_; }
-    const std::string& openai_url()           const { return openai_url_; }
-    const std::string& openai_key()           const { return openai_key_; }
-    const std::string& system_prompt_template() const { return system_prompt_; }
+    std::string backend()              const;
+    std::string model()                const;
+    std::string ollama_url()           const;
+    std::string openai_url()           const;
+    std::string openai_key()           const;
+    std::string system_prompt_template() const;
 
     // ── Setters ──────────────────────────────────────────────────────────────
-    void set_backend(const std::string& v)              { backend_ = v; }
-    void set_model(const std::string& v)                { model_ = v; }
-    void set_ollama_url(const std::string& v)           { ollama_url_ = v; }
-    void set_openai_url(const std::string& v)           { openai_url_ = v; }
-    void set_openai_key(const std::string& v)           { openai_key_ = v; }
-    void set_system_prompt_template(const std::string& v) { system_prompt_ = v; }
+    void set_backend(const std::string& v);
+    void set_model(const std::string& v);
+    void set_ollama_url(const std::string& v);
+    void set_openai_url(const std::string& v);
+    void set_openai_key(const std::string& v);
+    void set_system_prompt_template(const std::string& v);
 
-    /**
-     * Validate the current configuration.
-     * @return Empty string on success, or a human-readable error message.
-     */
+    // ── Validation ───────────────────────────────────────────────────────────
     std::string validate() const;
 
     static std::string default_system_prompt();
 
-private:
-    Config() = default;
+    // ── Providers (saved OpenAI-compatible endpoints) ────────────────────────
+    std::vector<SavedProvider> list_providers() const;
+    void save_provider(const SavedProvider& provider);
+    void delete_provider(int id);
 
-    std::string backend_       = "ollama";
-    std::string model_         = "llama3.2:3b";
-    std::string ollama_url_    = "http://localhost:11434";
-    std::string openai_url_    = "https://api.openai.com/v1";
+private:
+    Config()  = default;
+    ~Config();
+    Config(const Config&)            = delete;
+    Config& operator=(const Config&) = delete;
+
+    /** Ensure the directory and tables exist. */
+    void ensure_db();
+
+    /** Migrate from ~/.config/asktux/config.json if present. */
+    void migrate_from_json();
+
+    /** Read a single setting by key (returns default if missing). */
+    std::string get_setting(const std::string& key,
+                            const std::string& default_val) const;
+
+    /** Write a single setting. */
+    void set_setting(const std::string& key, const std::string& value);
+
+    sqlite3* db_ = nullptr;
+
+    // ── In-memory dirty flags (written to DB on save()) ──────────────────────
+    std::string backend_;
+    std::string model_;
+    std::string ollama_url_;
+    std::string openai_url_;
     std::string openai_key_;
-    std::string system_prompt_ = default_system_prompt();
+    std::string system_prompt_;
 };
 
 #endif // ASKTUX_CONFIG_H

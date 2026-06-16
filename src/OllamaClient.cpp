@@ -1,5 +1,7 @@
 #include "OllamaClient.h"
 #include "Config.h"
+#include "ScopedTimer.h"
+#include "Log.h"
 
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
@@ -12,6 +14,8 @@ static size_t write_callback(char* ptr, size_t size, size_t nmemb, void* userdat
 {
     auto* parser = static_cast<StreamParser*>(userdata);
     size_t total = size * nmemb;
+    Log::dbg() << "[AskTux TRACE] write_callback: " << total << " bytes"
+               << std::endl;
     parser->feed(std::string(ptr, total));
     return total;
 }
@@ -78,6 +82,7 @@ void OllamaClient::worker_thread(
     ErrorCallback    on_error,
     FinishCallback   on_finish)
 {
+    ScopedTimer timer("OllamaClient::worker_thread total");
     CancelCtx cancel_ctx{&cancelled_};
 
     CURL* curl = curl_easy_init();
@@ -114,10 +119,12 @@ void OllamaClient::worker_thread(
     // PHASE 1 — Check if model is already available; pull if not
     // ══════════════════════════════════════════════════════════════════════════
     {
+        ScopedTimer phase1_timer("Phase 1: tags check + pull");
         // Use a dedicated curl handle for the tags check — same pattern as
         // list_models() — to avoid state pollution from the main handle.
         bool model_available = false;
         {
+            ScopedTimer tags_timer("  Tags check: GET /api/tags");
             std::string tags_url = base_url + "/api/tags";
             std::string tags_response;
 
@@ -191,6 +198,7 @@ void OllamaClient::worker_thread(
         }
 
         if (!model_available) {
+            ScopedTimer pull_timer("  Pull: POST /api/pull");
             std::cerr << "[AskTux] Proceeding with POST /api/pull for \""
                       << model << "\"" << std::endl;
             if (on_progress) on_progress(model + " — not found locally, pulling…");
@@ -206,8 +214,9 @@ void OllamaClient::worker_thread(
             };
 
             nlohmann::json pull_body;
-            pull_body["model"]  = model;
-            pull_body["stream"] = true;
+            pull_body["model"]      = model;
+            pull_body["stream"]     = true;
+            pull_body["keep_alive"] = "20m";
 
             std::string pull_json = pull_body.dump();
 
@@ -263,31 +272,71 @@ void OllamaClient::worker_thread(
             std::cerr << "[AskTux] Skipping /api/pull — model already available"
                       << std::endl;
         }
+        phase1_timer.lap("Phase 1 complete");
     }
 
     // ══════════════════════════════════════════════════════════════════════════
     // PHASE 2 — Generate the response via /api/generate
     // ══════════════════════════════════════════════════════════════════════════
     {
+        ScopedTimer gen_timer("Phase 2: POST /api/generate (until stream ends)");
         StreamParser gen_parser(StreamParser::Mode::Ollama);
-        gen_parser.on_token    = std::move(on_token);
+
+        // Shared state for TTFT — use a heap-allocated struct so the
+        // callback can access it reliably across move/copy.
+        struct TtftState {
+            std::chrono::steady_clock::time_point before_request;
+            std::atomic<bool> first_token_seen{false};
+        };
+        auto ttft_state = std::make_shared<TtftState>();
+
         gen_parser.on_progress = wrap_progress;  // same readable wrapper
         gen_parser.on_error    = on_error;
         gen_parser.on_finish   = std::move(on_finish);
 
         nlohmann::json gen_body;
-        gen_body["model"]   = model;
-        gen_body["system"]  = system_prompt;
-        gen_body["prompt"]  = user_question;
-        gen_body["stream"]  = true;
-        gen_body["options"] = {{"temperature", 0.2}};
+        gen_body["model"]      = model;
+        gen_body["messages"]   = nlohmann::json::array({
+            {{"role", "system"},    {"content", system_prompt}},
+            {{"role", "user"},      {"content", user_question}}
+        });
+        gen_body["stream"]     = true;
+        gen_body["keep_alive"] = "20m";  // keep model in VRAM between requests
+        gen_body["options"]    = {{"temperature", 0.2}};
 
         std::string gen_json = gen_body.dump();
 
-        curl_easy_setopt(curl, CURLOPT_URL, (base_url + "/api/generate").c_str());
+        // Log what's being sent to the LLM.
+        Log::dbg() << "\n[AskTux] ──── Sent to LLM ────" << std::endl;
+        Log::dbg() << "[AskTux] System prompt (" << system_prompt.size()
+                   << " chars, ~" << (system_prompt.size() / 4) << " tokens):"
+                   << std::endl;
+        Log::dbg() << "[AskTux] >>>" << std::endl;
+        Log::dbg() << system_prompt << std::endl;
+        Log::dbg() << "[AskTux] <<<" << std::endl;
+        Log::dbg() << "[AskTux] User question (" << user_question.size()
+                   << " chars): " << user_question << std::endl;
+        Log::dbg() << "[AskTux] Total request body: " << gen_json.size()
+                   << " bytes" << std::endl;
+        Log::dbg() << "[AskTux] ──────────────────────\n" << std::endl;
+
+        curl_easy_setopt(curl, CURLOPT_URL, (base_url + "/api/chat").c_str());
         curl_easy_setopt(curl, CURLOPT_POSTFIELDS,    gen_json.c_str());
         curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, gen_json.size());
         setup_curl(curl, headers, &gen_parser, &cancel_ctx);
+
+        // Mark the start just before the blocking call.
+        ttft_state->before_request = std::chrono::steady_clock::now();
+        gen_parser.on_token = [ttft_state, on_token](const std::string& token) {
+            if (!ttft_state->first_token_seen.exchange(true)) {
+                auto ttft = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                std::chrono::steady_clock::now()
+                                - ttft_state->before_request).count();
+                Log::dbg() << "[AskTux TIMER]   TTFT (first token): " << ttft << " ms"
+                           << std::endl;
+            }
+            if (on_token) on_token(token);
+        };
 
         CURLcode res = curl_easy_perform(curl);
 

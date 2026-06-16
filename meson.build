@@ -12,6 +12,7 @@ gtkmm_dep = dependency('gtkmm-4.0', required : true)
 curl_dep  = dependency('libcurl',   required : true)
 nlohmann_json_dep = dependency('nlohmann_json', required : true)
 thread_dep = dependency('threads')
+sqlite3_dep = dependency('sqlite3', required : true)
 
 # ── Sub-directories ───────────────────────────────────────────────────────────
 subdir('src')
