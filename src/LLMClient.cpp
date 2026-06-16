@@ -6,9 +6,9 @@
 std::unique_ptr<LLMClient> LLMClient::create()
 {
     const auto& cfg = Config::instance();
-    if (cfg.backend() == "openai") {
-        return std::make_unique<OpenAIClient>();
+    // Provider ID 1 = Ollama; everything else uses the OpenAI-compatible client.
+    if (cfg.provider_id() == 1) {
+        return std::make_unique<OllamaClient>();
     }
-    // Default: Ollama.
-    return std::make_unique<OllamaClient>();
+    return std::make_unique<OpenAIClient>();
 }

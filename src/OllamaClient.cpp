@@ -60,7 +60,7 @@ void OllamaClient::send_request(
     cancelled_ = false;
 
     const auto& cfg = Config::instance();
-    std::string base_url = cfg.ollama_url();
+    std::string base_url = cfg.provider_url();
     std::string model    = cfg.model();
 
     // Spawn worker thread — passes individual components so it can do pull + generate.
@@ -369,9 +369,14 @@ void OllamaClient::worker_thread(
 // ── List installed models via GET /api/tags ──────────────────────────────────
 std::vector<std::string> OllamaClient::list_models()
 {
-    std::vector<std::string> models;
     const auto& cfg = Config::instance();
-    std::string url = cfg.ollama_url() + "/api/tags";
+    return list_models(cfg.provider_url());
+}
+
+std::vector<std::string> OllamaClient::list_models(const std::string& base_url)
+{
+    std::vector<std::string> models;
+    std::string url = base_url + "/api/tags";
 
     CURL* curl = curl_easy_init();
     if (!curl) return models;

@@ -31,8 +31,10 @@ public:
 
     void cancel() override { cancelled_ = true; }
 
-    /** Query the Ollama API for installed models. Returns model names. */
+    /** Query the Ollama API for installed models. Uses Config URL by default. */
     static std::vector<std::string> list_models();
+    /** Query a specific Ollama endpoint for models. */
+    static std::vector<std::string> list_models(const std::string& base_url);
 
 private:
     void worker_thread(const std::string& base_url,

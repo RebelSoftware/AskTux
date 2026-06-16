@@ -30,7 +30,8 @@ AskTux is a desktop application that lets you ask natural-language questions abo
 - **nlohmann_json** (header-only JSON library)
 - **WebKitGTK 6.0** (`libwebkitgtk-6.0-dev`) — for HTML rendering
 - **libcmark** (`libcmark-dev`) — CommonMark markdown parser
-- **Meson** (build system)
+- **Meson** — build system
+- **sqlite** — For configuration and history
 - A running **Ollama** instance (default) or an **OpenAI-compatible API** endpoint
 
 ### Quick install (Debian / Ubuntu)

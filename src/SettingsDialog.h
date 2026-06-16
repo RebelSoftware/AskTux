@@ -7,8 +7,7 @@
 /**
  * SettingsDialog — modal dialog for editing asktux configuration.
  *
- * Fields: backend, model (editable combo, auto-populated from Ollama),
- * Ollama URL, OpenAI URL, API key, system prompt.
+ * Fields: provider (combo from providers table), model, system prompt.
  * On Save, values are written to Config and the dialog closes.
  */
 class SettingsDialog : public Gtk::Dialog {
@@ -18,18 +17,18 @@ public:
 
 private:
     void populate_from_config();
-    void populate_ollama_models();
+    void populate_providers();
     void on_save(int response);
-    void on_backend_changed();
+    void on_provider_changed();
+    void refresh_models();
+    int  selected_provider_id() const;
 
     // ── Widgets ──────────────────────────────────────────────────────────────
-    Gtk::ComboBoxText  backend_combo_;
-    Gtk::ComboBoxText  model_combo_;       // dropdown of installed models
-    Gtk::Entry         model_entry_;       // type any model name here
+    Gtk::ComboBoxText  provider_combo_;   // dropdown of saved providers
+    Gtk::ComboBoxText  model_combo_;      // dropdown of models for this provider
+    Gtk::Entry         model_entry_;      // type any model name
     Gtk::Button        refresh_models_btn_;
-    Gtk::Entry         ollama_url_entry_;
-    Gtk::Entry         openai_url_entry_;
-    Gtk::Entry         api_key_entry_;
+    Gtk::Entry         api_key_entry_;    // API key for the selected provider
     Gtk::TextView      prompt_textview_;
     Gtk::ScrolledWindow prompt_scroll_;
 };

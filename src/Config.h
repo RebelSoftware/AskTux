@@ -17,6 +17,13 @@ struct SavedProvider {
     std::string last_model;    // last model selected for this provider
 };
 
+/** A model name associated with a SavedProvider. */
+struct SavedModel {
+    int id          = 0;
+    int provider_id = 0;
+    std::string name;           // e.g. "gpt-4", "llama3.1:8b"
+};
+
 /**
  * Config — singleton backed by ~/.config/asktux/config.db (SQLite).
  *
@@ -39,19 +46,16 @@ public:
     void save();
 
     // ── Getters ──────────────────────────────────────────────────────────────
-    std::string backend()              const;
-    std::string model()                const;
-    std::string ollama_url()           const;
-    std::string openai_url()           const;
-    std::string openai_key()           const;
+    int         provider_id()            const;
+    std::string provider_name()          const;   // human name for current provider
+    std::string provider_url()           const;   // base_url for current provider
+    std::string provider_api_key()       const;   // api_key for current provider
+    std::string model()                  const;
     std::string system_prompt_template() const;
 
     // ── Setters ──────────────────────────────────────────────────────────────
-    void set_backend(const std::string& v);
+    void set_provider_id(int v);
     void set_model(const std::string& v);
-    void set_ollama_url(const std::string& v);
-    void set_openai_url(const std::string& v);
-    void set_openai_key(const std::string& v);
     void set_system_prompt_template(const std::string& v);
 
     // ── Validation ───────────────────────────────────────────────────────────
@@ -64,6 +68,11 @@ public:
     void save_provider(const SavedProvider& provider);
     void delete_provider(int id);
 
+    // ── Models (per-provider model lists) ────────────────────────────────────
+    std::vector<SavedModel> list_models(int provider_id) const;
+    void save_model(int provider_id, const std::string& name);
+    void delete_model(int id);
+
 private:
     Config()  = default;
     ~Config();
@@ -72,9 +81,6 @@ private:
 
     /** Ensure the directory and tables exist. */
     void ensure_db();
-
-    /** Migrate from ~/.config/asktux/config.json if present. */
-    void migrate_from_json();
 
     /** Read a single setting by key (returns default if missing). */
     std::string get_setting(const std::string& key,
@@ -85,12 +91,8 @@ private:
 
     sqlite3* db_ = nullptr;
 
-    // ── In-memory dirty flags (written to DB on save()) ──────────────────────
-    std::string backend_;
-    std::string model_;
-    std::string ollama_url_;
-    std::string openai_url_;
-    std::string openai_key_;
+    // ── In-memory cache (written to DB on save()) ────────────────────────────
+    int         provider_id_ = 1;
     std::string system_prompt_;
 };
 
