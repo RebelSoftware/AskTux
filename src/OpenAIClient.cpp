@@ -123,7 +123,7 @@ void OpenAIClient::worker_thread(
     curl_easy_setopt(curl, CURLOPT_WRITEDATA,         &parser);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT,    10L);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT,           0L);  // no hard timeout (cancel button)
-    curl_easy_setopt(curl, CURLOPT_USERAGENT,         "LinHelp/1.0");
+    curl_easy_setopt(curl, CURLOPT_USERAGENT,         "asktux/1.0");
     // Progress callback for cancel support.
     curl_easy_setopt(curl, CURLOPT_NOPROGRESS,        0L);
     curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION,  progress_callback);

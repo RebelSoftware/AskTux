@@ -1,5 +1,5 @@
-#ifndef LINHELP_PROMPT_BUILDER_H
-#define LINHELP_PROMPT_BUILDER_H
+#ifndef asktux_PROMPT_BUILDER_H
+#define asktux_PROMPT_BUILDER_H
 
 #include <string>
 #include "SystemInfo.h"
@@ -26,4 +26,4 @@ public:
                              const std::string& user_question);
 };
 
-#endif // LINHELP_PROMPT_BUILDER_H
+#endif // asktux_PROMPT_BUILDER_H

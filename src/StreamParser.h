@@ -1,5 +1,5 @@
-#ifndef LINHELP_STREAM_PARSER_H
-#define LINHELP_STREAM_PARSER_H
+#ifndef asktux_STREAM_PARSER_H
+#define asktux_STREAM_PARSER_H
 
 #include <string>
 #include <functional>
@@ -41,4 +41,4 @@ private:
     std::string buffer_;   // for partial-line accumulation
 };
 
-#endif // LINHELP_STREAM_PARSER_H
+#endif // asktux_STREAM_PARSER_H

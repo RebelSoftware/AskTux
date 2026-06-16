@@ -1,11 +1,11 @@
-#ifndef LINHELP_SETTINGS_DIALOG_H
-#define LINHELP_SETTINGS_DIALOG_H
+#ifndef asktux_SETTINGS_DIALOG_H
+#define asktux_SETTINGS_DIALOG_H
 
 #include <gtkmm.h>
 #include <string>
 
 /**
- * SettingsDialog — modal dialog for editing LinHelp configuration.
+ * SettingsDialog — modal dialog for editing asktux configuration.
  *
  * Fields: backend, model (editable combo, auto-populated from Ollama),
  * Ollama URL, OpenAI URL, API key, system prompt.
@@ -34,4 +34,4 @@ private:
     Gtk::ScrolledWindow prompt_scroll_;
 };
 
-#endif // LINHELP_SETTINGS_DIALOG_H
+#endif // asktux_SETTINGS_DIALOG_H

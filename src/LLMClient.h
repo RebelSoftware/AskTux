@@ -1,5 +1,5 @@
-#ifndef LINHELP_LLM_CLIENT_H
-#define LINHELP_LLM_CLIENT_H
+#ifndef asktux_LLM_CLIENT_H
+#define asktux_LLM_CLIENT_H
 
 #include <string>
 #include <functional>
@@ -49,4 +49,4 @@ public:
     static std::unique_ptr<LLMClient> create();
 };
 
-#endif // LINHELP_LLM_CLIENT_H
+#endif // asktux_LLM_CLIENT_H

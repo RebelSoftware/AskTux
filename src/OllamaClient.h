@@ -1,5 +1,5 @@
-#ifndef LINHELP_OLLAMA_CLIENT_H
-#define LINHELP_OLLAMA_CLIENT_H
+#ifndef asktux_OLLAMA_CLIENT_H
+#define asktux_OLLAMA_CLIENT_H
 
 #include "LLMClient.h"
 #include "StreamParser.h"
@@ -47,4 +47,4 @@ private:
     std::atomic<bool> cancelled_{false};
 };
 
-#endif // LINHELP_OLLAMA_CLIENT_H
+#endif // asktux_OLLAMA_CLIENT_H

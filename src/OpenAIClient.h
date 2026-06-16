@@ -1,5 +1,5 @@
-#ifndef LINHELP_OPENAI_CLIENT_H
-#define LINHELP_OPENAI_CLIENT_H
+#ifndef asktux_OPENAI_CLIENT_H
+#define asktux_OPENAI_CLIENT_H
 
 #include "LLMClient.h"
 #include "StreamParser.h"
@@ -41,4 +41,4 @@ private:
     std::atomic<bool> cancelled_{false};
 };
 
-#endif // LINHELP_OPENAI_CLIENT_H
+#endif // asktux_OPENAI_CLIENT_H

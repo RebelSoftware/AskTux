@@ -1,5 +1,5 @@
-#ifndef LINHELP_MAIN_WINDOW_H
-#define LINHELP_MAIN_WINDOW_H
+#ifndef asktux_MAIN_WINDOW_H
+#define asktux_MAIN_WINDOW_H
 
 #include <gtkmm.h>
 #include <webkit/webkit.h>
@@ -89,4 +89,4 @@ private:
     bool first_token_received_ = false;
 };
 
-#endif // LINHELP_MAIN_WINDOW_H
+#endif // asktux_MAIN_WINDOW_H
