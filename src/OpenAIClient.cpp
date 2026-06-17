@@ -42,7 +42,7 @@ void OpenAIClient::send_request(
     cancelled_ = false;
 
     const auto& cfg     = Config::instance();
-    std::string url     = cfg.provider_url() + "/v1/chat/completions";
+    std::string url     = cfg.provider_url() + "/chat/completions";
     std::string api_key = cfg.provider_api_key();
     std::string model   = cfg.model();
 
