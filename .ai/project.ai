@@ -1,0 +1,111 @@
+# AskTux — Project State
+
+## What is AskTux?
+A desktop GUI application that lets users ask natural-language questions
+about using Linux and get step-by-step answers tailored to their system.
+Written in C++ with GTK4 (gtkmm).  Think of it as "Linux tech support
+in a window" — it knows your distro, desktop, shell, and hardware, and
+can look up man pages, check what software is installed, search APT
+packages, and more.
+
+## Tech Stack
+- Language: C++17
+- GUI: GTK4 + gtkmm 4.0
+- Web rendering: WebKitGTK 6.0 (for markdown output)
+- Markdown→HTML: libcmark
+- HTTP: libcurl
+- Storage: SQLite 3
+- JSON: nlohmann_json
+- Build: Meson
+
+## Architecture
+- `MainWindow` — GTK app window, signal handlers, token queue management
+- `LLMClient` — abstract base; `OllamaClient` and `OpenAIClient` implement it
+- `Config` — singleton, SQLite-backed settings + providers
+- `StreamParser` — parses newline-delimited JSON (Ollama) or SSE (OpenAI)
+- `PromptBuilder` — substitutes `{distro}`, `{tool_descriptions}`, etc. into the system prompt
+- `ToolRegistry` — tool definitions + execution (find_apps, man_pages, etc.)
+- `MarkdownRenderer` — cmark conversion + CSS + JS for collapsible tool results
+- `Log` / `ScopedTimer` — debug instrumentation (enabled via `--debug`)
+
+## Directory Layout
+```
+asktux/
+├── data/
+│   ├── meson.build       # installs .desktop, icon, style.css, schema.sql
+│   ├── schema.sql         # canonical DB schema + seed data
+│   ├── style.css          # WebKit stylesheet (editable post-compile)
+│   ├── icons/asktux.svg
+│   └── asktux.desktop
+├── src/
+│   ├── main.cpp           # entry point, --debug flag, GLib log handler
+│   ├── MainWindow.{h,cpp}
+│   ├── Config.{h,cpp}     # SQLite-backed singleton
+│   ├── SystemInfo.{h,cpp} # distro/desktop/hardware detection
+│   ├── PromptBuilder.{h,cpp}
+│   ├── LLMClient.{h,cpp}
+│   ├── OllamaClient.{h,cpp}
+│   ├── OpenAIClient.{h,cpp}
+│   ├── StreamParser.{h,cpp}
+│   ├── SettingsDialog.{h,cpp}
+│   ├── MarkdownRenderer.{h,cpp}
+│   ├── Tool.{h,cpp}       # ToolRegistry + built-in tools
+│   ├── ScopedTimer.h      # RAII performance timer
+│   ├── Log.h              # conditional debug stream
+│   └── meson.build
+├── tests/
+├── INSTALL.md
+├── README.md
+├── meson.build
+└── meson_options.txt
+```
+
+## Database (SQLite, ~/.config/asktux/config.db)
+Tables:
+- `settings` — key/value pairs (provider, system_prompt)
+- `providers` — saved API endpoints with base_url, api_key, last_model
+- `models` — per-provider model names
+
+Default providers: Ollama (local), OpenAI, Groq, DeepSeek, Google AI, GitHub Models.
+
+## Default model
+`llama3.1:8b` via Ollama at `http://localhost:11434`
+
+## [Completed]
+- SQLite config storage (replaced JSON) with schema.sql as single source of truth
+- Provider system with saved endpoints, per-provider API keys + model lists
+- Multi-line input (Gtk::TextView, Ctrl+Enter to submit)
+- SystemInfo caching (background gather at startup)
+- Debug instrumentation (Log.h, ScopedTimer, --debug flag)
+- Tool execution framework (ToolRegistry with 5 built-in tools)
+- find_apps tool (searches installed .desktop files by keyword)
+- Collapsible tool results (blockquote + JS → <details>)
+- WebKit shutdown warning suppression
+- System-aware prompts ({distro}, {desktop}, {shell}, {hardware})
+- Streaming responses with real-time markdown→HTML rendering
+- External CSS styling
+- INSTALL.md with full dependency lists for Debian/Fedora/Arch
+
+## [TBD] — Rough priority order
+1. **Native function calling** — Replace `[TOOL: ...]` text markers with
+   proper OpenAI-compatible tool/function calling API. Ollama and OpenAI
+   both support this natively. Would eliminate the preamble/echoing issues.
+2. **Conversation history** — Maintain a messages array so users can ask
+   follow-up questions naturally (also required for proper tool-call
+   roundtrips with role: "tool" messages).
+3. **Installed-app context** — Scan .desktop files at startup and include
+   a compact summary in the system prompt (grouped by category).
+4. **Smarter model pulling** — Only pull if not already available (partial).
+4.1 ** prewarm model by sending the system prompt when user starts typing but only if it hasntbeen sent for that session
+5. **Read-only tool integrations** — man pages, apt-cache, dpkg, which
+   (partially done via ToolRegistry, needs native function-calling to
+   work cleanly).
+6. **Distribution packages** — .deb, .rpm, AppImage builds.
+7. **Chat history persistence** — Save conversations to the database for
+   retrieval/search.
+
+## Known Issues
+- Models vary in how well they follow the `[TOOL: ...]` text-marker format.
+  This is the primary motivation for switching to native function calling.
+- The `gemma4:e4b` model variant has a broken quant that causes 10s+ load
+  times and ignores instruction-following.

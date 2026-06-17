@@ -1,0 +1,30 @@
+# System instructions for AI coding assistants working on AskTux
+
+## Before starting any work
+Read `.ai/project.ai` for the current project state — what's completed,
+what's pending, architecture overview, and known issues.
+
+## After completing a task
+Update `.ai/project.ai`:
+- Move items from [TBD] to [Completed] if they are fully done.
+- Add any new [TBD] items that were discovered during the task.
+- Update the description or architecture notes if the implementation
+  changed the design.
+
+## Code style
+- C++17, GTK4 (gtkmm 4.0), Meson build.
+- Header files use `#ifndef ASKTUX_..._H` (project-name prefix).
+- Error messages printed to stderr with `[AskTux]` prefix.
+- Debug/trace output goes through `Log::dbg()` (disabled unless --debug).
+- RAII scoped timers via `ScopedTimer` (also gated by --debug).
+
+## Key files at a glance
+- `.ai/project.ai`      — full project state (read first)
+- `data/schema.sql`     — database DDL + seed data (single source of truth)
+- `src/Tool.h`          — tool registry (to be replaced by native function calling)
+- `src/Config.h`        — SQLite-backed settings singleton
+- `src/MainWindow.cpp`  — main UI logic, streaming, tool execution
+
+## When in doubt
+Ask the user for clarification rather than guessing intent.
+This project is prerelease — breaking changes are expected and welcome.
