@@ -6,9 +6,13 @@
 #include "LLMClient.h"
 #include "MarkdownRenderer.h"
 #include "ScopedTimer.h"
+#include "Tool.h"
 
 #include <glibmm.h>
 #include <iostream>
+#include <sstream>
+#include <regex>
+#include <thread>
 #include <sstream>
 
 // ── Constructor ──────────────────────────────────────────────────────────────
@@ -138,6 +142,11 @@ void MainWindow::on_submit()
     first_token_received_ = false;
     request_start_ = std::chrono::steady_clock::now();
 
+    // Store for potential tool-execution continuation.
+    last_question_ = question;
+    last_system_prompt_ = system_prompt;
+    tool_continuation_depth_ = 0;
+
     progress_bar_.set_visible(false);
     progress_bar_.set_fraction(0.0);
     cancel_btn_.set_visible(true);
@@ -223,10 +232,18 @@ void MainWindow::drain_token_queue()
         } else {
             status_label_.set_text("Ready");
         }
-        cancel_btn_.set_visible(false);
-        submit_btn_.set_visible(true);
-        progress_bar_.set_visible(false);
-        set_busy(false);
+
+        // Check if the response contains a tool call we should execute.
+        bool handled = false;
+        if (first_token_received_ && tool_continuation_depth_ < 3)
+            handled = check_and_execute_tool();
+
+        if (!handled) {
+            cancel_btn_.set_visible(false);
+            submit_btn_.set_visible(true);
+            progress_bar_.set_visible(false);
+            set_busy(false);
+        }
     }
 }
 
@@ -257,6 +274,119 @@ void MainWindow::drain_progress_queue()
         }
         status_label_.set_text(status);
     }
+}
+
+// ── Tool execution ───────────────────────────────────────────────────────────
+bool MainWindow::check_and_execute_tool()
+{
+    std::string tool_name, tool_args;
+    if (!ToolRegistry::instance().parse_tool_call(raw_output_, tool_name, tool_args))
+        return false;  // no tool call found
+
+    std::cerr << "[AskTux] Tool call detected: " << tool_name
+              << " args=\"" << tool_args << "\"" << std::endl;
+    status_label_.set_text("Running " + tool_name + "…");
+    last_tool_name_ = tool_name;
+
+    // Remove the tool call marker AND any AI preview text before it.
+    // raw_output_ contains only AI response tokens, so everything before
+    // the tool call is preamble that should not be shown.
+    {
+        std::regex tool_re(R"(\[TOOL:\s+\w+(?:\s+args=\"[^\"]*\")?\])");
+        std::smatch match;
+        if (std::regex_search(raw_output_, match, tool_re)) {
+            // Erase from the start of the response to the end of the tool call.
+            raw_output_.erase(0, match.position() + match.length());
+        }
+    }
+
+    // Show a collapsed placeholder in the output.
+    raw_output_ += "\n\n> **🔧 [tool] Running tool:** " + tool_name + "…\n>\n"
+                   "> _(waiting for result…)_\n\n";
+    update_html_content();
+
+    // Execute the tool on a background thread.
+    std::thread([this, tool_name, tool_args]() {
+        std::string result = ToolRegistry::instance().execute(tool_name, tool_args);
+
+        // Replace the placeholder with the actual result (on main thread).
+        Glib::signal_idle().connect_once([this, tool_name, result]() {
+            // Remove the placeholder.
+            auto pos = raw_output_.rfind("> **🔧 [tool] Running tool:");
+            if (pos != std::string::npos) {
+                // Find the blank line after the placeholder.
+                auto end = raw_output_.find("\n\n", pos + 1);
+                if (end != std::string::npos) end += 2;
+                else end = raw_output_.size();
+                raw_output_.erase(pos, end - pos);
+            }
+            // Inject the final result as a tagged blockquote.
+            raw_output_ += "\n\n> **🔧 [tool] " + tool_name + "**\n> \n> ```\n";
+            // Indent each line of the result so it stays inside the blockquote.
+            {
+                std::istringstream stream(result);
+                std::string line;
+                while (std::getline(stream, line)) {
+                    raw_output_ += "> " + line + "\n";
+                }
+            }
+            raw_output_ += "> ```\n\n";
+            update_html_content();
+
+            // Make a second request with the tool result as context.
+            ++tool_continuation_depth_;
+            status_label_.set_text("Continuing with tool result…");
+            do_tool_continuation();
+        });
+    }).detach();
+    return true;
+}
+
+void MainWindow::do_tool_continuation()
+{
+    // The tool result is already shown to the user as a blockquote in the
+    // output area.  For the continuation we just tell the model to continue
+    // its response — no need to repeat the raw output.
+    std::string continuation =
+        "[System instruction: The \"" + last_tool_name_
+        + "\" tool was executed above. Its output has been displayed to the "
+        "user. Continue your response naturally — directly answer the user's "
+        "original question based on that information. Do not describe what "
+        "the tool returned or repeat the tool output.]";
+
+    streaming_finished_ = false;
+    first_token_received_ = false;
+    request_start_ = std::chrono::steady_clock::now();
+    progress_bar_.set_visible(false);
+    progress_bar_.set_fraction(0.0);
+
+    auto tq_ptr = &token_queue_;
+    auto tm_ptr = &token_mutex_;
+    auto pq_ptr = &progress_queue_;
+    auto pm_ptr = &progress_mutex_;
+    auto disp   = &dispatcher_;
+    auto fin    = &streaming_finished_;
+
+    client_ = LLMClient::create();
+    client_->send_request(
+        last_system_prompt_, continuation,
+
+        [tq_ptr, tm_ptr, disp](const std::string& token) {
+            { std::lock_guard<std::mutex> lock(*tm_ptr); tq_ptr->push(token); }
+            disp->emit();
+        },
+        [pq_ptr, pm_ptr, disp](const std::string& status) {
+            { std::lock_guard<std::mutex> lock(*pm_ptr); pq_ptr->push(status); }
+            disp->emit();
+        },
+        [disp, tm_ptr, tq_ptr, fin](const std::string& err) {
+            { std::lock_guard<std::mutex> lock(*tm_ptr);
+              tq_ptr->push("\n\n**Error during tool continuation:** " + err); }
+            *fin = true;
+            disp->emit();
+        },
+        [this, fin]() { *fin = true; dispatcher_.emit(); }
+    );
 }
 
 // ── Copy ─────────────────────────────────────────────────────────────────────

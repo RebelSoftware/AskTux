@@ -10,6 +10,7 @@ asktux_sources = files(
   'StreamParser.cpp',
   'SettingsDialog.cpp',
   'MarkdownRenderer.cpp',
+  'Tool.cpp',
 )
 
 asktux_headers = files(
@@ -23,6 +24,7 @@ asktux_headers = files(
   'StreamParser.h',
   'SettingsDialog.h',
   'MarkdownRenderer.h',
+  'Tool.h',
 )
 
 webkit_dep = dependency('webkitgtk-6.0', required : true)

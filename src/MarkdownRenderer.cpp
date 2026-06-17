@@ -142,6 +142,22 @@ void MarkdownRenderer::rebuild_template()
     html_suffix_ =
         "\n<script>\n"
         "  window.scrollTo(0, document.body.scrollHeight);\n"
+        // Auto-collapse tool-result blockquotes into <details> elements.
+        "  document.querySelectorAll('blockquote').forEach(function(bq) {\n"
+        "    if (bq.textContent.indexOf('[tool]') !== -1) {\n"
+        "      var det = document.createElement('details');\n"
+        "      var sum = document.createElement('summary');\n"
+        "      sum.textContent = bq.textContent.replace('[tool]', '').trim();\n"
+        "      det.appendChild(sum);\n"
+        "      while (bq.firstChild) {\n"
+        "        var c = bq.firstChild;\n"
+        "        bq.removeChild(c);\n"
+        "        if (c.nodeType === 1 && c.tagName === 'BR') continue;\n"
+        "        det.appendChild(c);\n"
+        "      }\n"
+        "      bq.parentNode.replaceChild(det, bq);\n"
+        "    }\n"
+        "  });\n"
         "</script>\n"
         "</body>\n</html>\n";
 }

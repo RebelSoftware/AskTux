@@ -10,7 +10,7 @@
  *
  * Supported placeholders:
  *   {distro}, {desktop}, {desktop_version}, {window_system},
- *   {shell}, {hardware}, {user_question}
+ *   {shell}, {hardware}, {user_question}, {tool_descriptions}
  */
 class PromptBuilder {
 public:

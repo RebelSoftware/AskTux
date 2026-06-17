@@ -42,6 +42,11 @@ private:
     void on_settings();
     void on_dispatcher_tick();
 
+    // ── Tool execution (post-stream) ─────────────────────────────────────────
+    /** Returns true if a tool call was found and executed. */
+    bool check_and_execute_tool();
+    void do_tool_continuation();
+
     // ── Drain queues ─────────────────────────────────────────────────────────
     void drain_token_queue();
     void drain_progress_queue();
@@ -88,6 +93,12 @@ private:
     // ── Timing ───────────────────────────────────────────────────────────────
     std::chrono::steady_clock::time_point request_start_;
     bool first_token_received_ = false;
+
+    // ── Tool execution state ─────────────────────────────────────────────────
+    std::string last_question_;      // the original user question
+    std::string last_system_prompt_; // the system prompt used
+    std::string last_tool_name_;     // name of the tool being executed
+    int tool_continuation_depth_ = 0; // prevent infinite tool loops
 };
 
 #endif // asktux_MAIN_WINDOW_H

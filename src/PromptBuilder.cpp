@@ -1,4 +1,5 @@
 #include "PromptBuilder.h"
+#include "Tool.h"
 
 static void replace_all(std::string& s, const std::string& from, const std::string& to)
 {
@@ -23,6 +24,8 @@ std::string PromptBuilder::build(const std::string& template_str,
     replace_all(result, "{shell}",           info.shell);
     replace_all(result, "{hardware}",        info.hardware);
     replace_all(result, "{user_question}",   user_question);
+    replace_all(result, "{tool_descriptions}",
+                ToolRegistry::instance().tool_descriptions());
 
     return result;
 }

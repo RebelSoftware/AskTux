@@ -324,6 +324,7 @@ std::string Config::default_system_prompt()
         "- Never hallucinate dangerous commands.\n"
         "- If unsure, say \"I don't know based on your system info\" and "
         "suggest general documentation.\n\n"
+        "{tool_descriptions}\n\n"
         "User question:\n{user_question}";
 }
 

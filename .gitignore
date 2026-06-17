@@ -16,3 +16,4 @@ __pycache__/
 .bash_history_local
 notes.txt
 meson_options.txt
+*.log
