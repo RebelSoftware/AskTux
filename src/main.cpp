@@ -8,9 +8,33 @@
 #include <iostream>
 #include <curl/curl.h>
 #include <cstring>
+#include <glib.h>
+
+/** Suppress harmless WebKit shutdown warnings about the web process name. */
+static void silence_webkit_warnings(const gchar* log_domain,
+                                    GLogLevelFlags log_level,
+                                    const gchar* message,
+                                    gpointer)
+{
+    // Discard "Error releasing name ... The connection is closed"
+    if (log_level & G_LOG_LEVEL_WARNING && message
+        && g_strstr_len(message, -1, "Error releasing name"))
+        return;
+
+    // Fall through to the default handler for everything else.
+    g_log_default_handler(log_domain, log_level, message, nullptr);
+}
 
 int main(int argc, char* argv[])
 {
+    // Silence noisy WebKit shutdown warnings.
+    // Must be installed before any WebKit objects are created.
+    g_log_set_handler("GLib-GIO",
+                      GLogLevelFlags(G_LOG_LEVEL_WARNING
+                                     | G_LOG_FLAG_FATAL
+                                     | G_LOG_FLAG_RECURSION),
+                      silence_webkit_warnings, nullptr);
+
     // Initialise libcurl globally (once per process).
     curl_global_init(CURL_GLOBAL_ALL);
 
