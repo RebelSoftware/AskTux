@@ -15,7 +15,7 @@
 ### Installing dependencies (Debian / Ubuntu)
 
 ```bash
-sudo apt install libgtkmm-4.0-dev libcurl4-openssl-dev nlohmann-json3-dev \
+sudo apt install libgtkmm-4.0-dev libcurl4-openssl-dev \
                  libsqlite3-dev libwebkitgtk-6.0-dev libcmark-dev \
                  meson pkg-config
 ```
@@ -23,7 +23,7 @@ sudo apt install libgtkmm-4.0-dev libcurl4-openssl-dev nlohmann-json3-dev \
 ### Installing dependencies (Fedora)
 
 ```bash
-sudo dnf install gtkmm4-devel libcurl-devel nlohmann-json-devel \
+sudo dnf install gtkmm4-devel libcurl-devel \
                  sqlite-devel webkitgtk6.0-devel cmark-devel \
                  meson pkg-config
 ```
@@ -31,7 +31,7 @@ sudo dnf install gtkmm4-devel libcurl-devel nlohmann-json-devel \
 ### Installing dependencies (Arch)
 
 ```bash
-sudo pacman -S gtkmm4 curl nlohmann-json sqlite webkitgtk-6.0 cmark \
+sudo pacman -S gtkmm4 curl sqlite webkitgtk-6.0 cmark \
                meson pkg-config
 ```
 
