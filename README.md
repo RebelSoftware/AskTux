@@ -35,38 +35,18 @@ AskTux is a desktop application that lets you ask natural-language questions abo
 - **Meson** — build system
 - A running **Ollama** instance (default) or an **OpenAI-compatible API** endpoint
 
-### Quick install (Debian / Ubuntu)
+## Building
+
+See [INSTALL.md](INSTALL.md) for full dependencies, build, and install
+instructions.  Quick start:
 
 ```bash
 sudo apt install meson libgtkmm-4.0-dev libcurl4-openssl-dev \
                  libwebkitgtk-6.0-dev libcmark-dev libsqlite3-dev
-```
 
----
-
-## Building
-
-```bash
 meson setup build
 meson compile -C build
-```
-
-Run from the build directory:
-
-```bash
 ./build/src/asktux
-```
-
-The database is created automatically on first run using the schema in
-`data/schema.sql`. If the schema file cannot be found the application will
-refuse to start with a clear error — install scripts should ensure it is
-present.
-
-To pre-initialise the database manually (e.g. in an install script):
-
-```bash
-mkdir -p ~/.config/asktux
-sqlite3 ~/.config/asktux/config.db < data/schema.sql
 ```
 
 ---
