@@ -12,7 +12,7 @@ AskTux is a desktop application that lets you ask natural-language questions abo
 
 ---
 ## Who is Tux?
-<img src=https://upload.wikimedia.org/wikipedia/commons/3/35/Tux.svg width="100" height="50"> Tux is a penguin character and the official mascot of the Linux kernel. 
+<img src=https://upload.wikimedia.org/wikipedia/commons/3/35/Tux.svg width="100" height="50"  style="background-color: white;"> Tux is a penguin character and the official mascot of the Linux kernel. 
 
 
 ## Features
